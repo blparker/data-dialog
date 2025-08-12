@@ -1,24 +1,28 @@
 import FullScreenMessage from '@/components/full-screen-message';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useTableData, useTableSchema, useVirtualizedTable } from '@/hooks/use-data-table';
-import { DataField } from '@/lib/types/data';
-import { cn } from '@/lib/utils';
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    closestCenter,
-    DndContext,
-    DragEndEvent,
-    DragOverEvent,
-    DragStartEvent,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-} from '@dnd-kit/core';
-import { arrayMove, horizontalListSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { Column, flexRender, Header } from '@tanstack/react-table';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import {
+    useColumnReorder,
+    useInfiniteScroll,
+    useTableData,
+    useTableMutations,
+    useTableSchema,
+    useVirtualizedTable,
+} from '@/hooks/use-data-table';
+import { DataField } from '@/lib/types/data';
 import { TableRowType } from '@/lib/types/table';
+import { cn } from '@/lib/utils';
+import { closestCenter, DndContext } from '@dnd-kit/core';
+import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
+import { Column, flexRender, Header } from '@tanstack/react-table';
+import { ArrowDownAZ, ArrowUpZA, Edit, Filter, MoreVertical, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const SCROLL_THRESHOLD = 200;
 const DEFAULT_ROW_HEIGHT = 40;
@@ -26,18 +30,14 @@ const HEADER_HEIGHT = 40;
 
 export default function DataTable({ chatId, stepId }: { chatId: string; stepId: string }) {
     const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
-    const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
+    // const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
     const [columnOrder, setColumnOrder] = useState<DataField[]>([]);
 
     const { data: schema, isLoading: isSchemaLoading, error: schemaError } = useTableSchema({ chatId, stepId, useMockData: true });
-    const {
-        data,
-        isLoading: isDataLoading,
-        error: dataError,
-        hasNextPage,
-        fetchNextPage,
-        isFetchingNextPage,
-    } = useTableData({ chatId, stepId, useMockData: true });
+    const { data, error: dataError, hasNextPage, fetchNextPage, isFetchingNextPage } = useTableData({ chatId, stepId, useMockData: true });
+    const { handleScroll } = useInfiniteScroll({ hasNextPage, isFetchingNextPage, fetchNextPage });
+    const { handleDragStart, handleDragEnd, handleDragOver, sensors } = useColumnReorder(columnOrder, setColumnOrder);
+    const { deleteSelectedColumns, renameColumn } = useTableMutations({ chatId, stepId, useMockData: true });
 
     const allRows = useMemo(() => data?.pages?.flatMap((page) => page.rows) ?? [], [data]);
     const { table, tableContainerRef, rows, columns, totalHeight, totalWidth } = useVirtualizedTable({
@@ -46,7 +46,11 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
         columnOrder,
     });
 
-    console.log('*** Re-rendering...');
+    useEffect(() => {
+        if (schema) {
+            setColumnOrder(schema);
+        }
+    }, [schema]);
 
     const handleFieldSelect = useCallback(
         (fieldId: string, event: React.MouseEvent) => {
@@ -74,77 +78,30 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
         [schema]
     );
 
-    useEffect(() => {
-        if (schema) {
-            setColumnOrder(schema);
-        }
-    }, [schema]);
-
-    const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8,
-            },
-        }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
+    const handleDeleteColumns = useCallback(
+        (columnIds: string[]) => {
+            setSelectedFieldIds((prev) => prev.filter((id) => !columnIds.includes(id)));
+            deleteSelectedColumns({ columnIds });
+        },
+        [deleteSelectedColumns]
     );
 
-    if (!schema) {
+    useEffect(() => {
+        function onKeyPress(event: KeyboardEvent) {
+            if ((event.key === 'Delete' || event.key === 'Backspace') && selectedFieldIds.length > 0) {
+                handleDeleteColumns(selectedFieldIds);
+            }
+        }
+        window.addEventListener('keydown', onKeyPress);
+        return () => window.removeEventListener('keydown', onKeyPress);
+    }, [handleDeleteColumns, selectedFieldIds]);
+
+    if (isSchemaLoading) {
         return <FullScreenMessage>Loading...</FullScreenMessage>;
     }
 
     if (schemaError || dataError) {
         return <FullScreenMessage className="text-destructive">Error loading data</FullScreenMessage>;
-    }
-
-    function handleDragStart(event: DragStartEvent) {
-        console.log('*** handleDragStart', event);
-        setActiveFieldId(event.active.id as string);
-    }
-
-    function handleDragEnd(event: DragEndEvent) {
-        console.log('*** handleDragEnd', event);
-        const { active, over } = event;
-
-        if (active.id != over?.id) {
-            setColumnOrder((prev) => {
-                const oldIndex = prev.findIndex((field) => field.id === active.id);
-                const newIndex = prev.findIndex((field) => field.id === over?.id);
-
-                return arrayMove(prev, oldIndex, newIndex);
-            });
-        }
-
-        setActiveFieldId(null);
-    }
-
-    function handleDragOver(event: DragOverEvent) {
-        const { active, over } = event;
-
-        if (active.id !== over?.id) {
-            setColumnOrder((prev) => {
-                const oldIndex = prev.findIndex((field) => field.id === active.id);
-                const newIndex = prev.findIndex((field) => field.id === over?.id);
-
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    return arrayMove(prev, oldIndex, newIndex);
-                }
-
-                return prev;
-            });
-        }
-    }
-
-    function handleScroll(e: React.UIEvent<HTMLDivElement>) {
-        const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-        const isNearBottom = scrollTop + clientHeight >= scrollHeight - SCROLL_THRESHOLD;
-
-        if (isNearBottom && hasNextPage && !isFetchingNextPage) {
-            console.log('fetching next page');
-            fetchNextPage();
-        }
     }
 
     return (
@@ -170,6 +127,8 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                                         header={header}
                                         isSelected={isSelected}
                                         onFieldSelect={handleFieldSelect}
+                                        onRename={(columnId, newName) => renameColumn({ columnId, newName })}
+                                        onDelete={() => handleDeleteColumns([column.id])}
                                         style={{
                                             left: virtualColumn.start,
                                             width: virtualColumn.size,
@@ -234,15 +193,21 @@ function DataTableHead({
     header,
     isSelected,
     onFieldSelect,
+    onRename,
+    onDelete,
     style,
 }: {
     field: Column<TableRowType>;
     header: Header<TableRowType, unknown>;
     isSelected: boolean;
     onFieldSelect: (fieldId: string, event: React.MouseEvent) => void;
+    onRename: (columnId: string, newName: string) => void;
+    onDelete: (columnId: string) => void;
     style: React.CSSProperties;
 }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id });
+    const [isRenaming, setIsRenaming] = useState(false);
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isRenaming });
+    const [newName, setNewName] = useState<string>(flexRender(header.column.columnDef.header, header.getContext()) as string);
 
     return (
         <div
@@ -251,16 +216,126 @@ function DataTableHead({
             {...attributes}
             {...listeners}
             onMouseDown={(e) => {
-                onFieldSelect(field.id, e);
+                if (!isRenaming) onFieldSelect(field.id, e);
             }}
+            onDoubleClick={() => setIsRenaming(true)}
             className={cn(
-                'absolute top-0 font-medium cursor-pointer select-none px-2 py-1 border-r flex items-center',
+                'absolute top-0 font-medium cursor-pointer select-none px-2 py-1 border-r flex items-center group',
                 isSelected && 'bg-blue-500 text-white',
-                isDragging && 'cursor-ew-resize opacity-50'
+                isDragging && !isRenaming && 'cursor-ew-resize opacity-50'
             )}
         >
-            {flexRender(header.column.columnDef.header, header.getContext())}
+            {isRenaming ? (
+                <Input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onBlur={() => setIsRenaming(false)}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                            setIsRenaming(false);
+                            onRename(field.id, newName);
+                        } else if (event.key === 'Escape') {
+                            setNewName(flexRender(header.column.columnDef.header, header.getContext()) as string);
+                            setIsRenaming(false);
+                        }
+                    }}
+                    className={'px-1! h-8 text-md! bg-background text-primary'}
+                />
+            ) : (
+                <div className="flex items-center justify-between w-full">
+                    <div className="truncate">{newName}</div>
+                    <FieldActionMenu
+                        field={field}
+                        isSelected={isSelected}
+                        setIsRenaming={setIsRenaming}
+                        onFieldSort={() => {}}
+                        onFieldFilter={() => {}}
+                        onFieldDelete={onDelete}
+                    />
+                </div>
+            )}
         </div>
+    );
+}
+
+function FieldActionMenu({
+    field,
+    isSelected,
+    setIsRenaming,
+    onFieldSort,
+    onFieldFilter,
+    onFieldDelete,
+}: {
+    field: Column<TableRowType>;
+    isSelected: boolean;
+    setIsRenaming: (isRenaming: boolean) => void;
+    onFieldSort: (columnId: string, direction: 'asc' | 'desc') => void;
+    onFieldFilter: (columnId: string, filterValue: string) => void;
+    onFieldDelete: (columnId: string) => void;
+}) {
+    const [optimisticType, setOptimisticType] = useState<string | null>(null);
+    // const [optimisticSelection, setOptimisticSelection] = useState<boolean>(isSelected);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+    function withStopPropagation<T extends React.SyntheticEvent>(handler: (e: T) => void) {
+        return (e: T) => {
+            e.stopPropagation();
+            setTimeout(() => handler(e), 0);
+        };
+    }
+
+    return (
+        <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+            <DropdownMenuTrigger
+                className={cn(
+                    'rounded p-0.5 cursor-pointer hover:bg-secondary opacity-0 group-hover:opacity-100 transition-opacity',
+                    isSelected && 'hover:bg-blue-600',
+                    isDropdownOpen && 'opacity-100'
+                )}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }}
+            >
+                {/* <MoreVertical className={cn('h-4 w-4 text-muted-foreground', optimisticSelection && 'text-white')} /> */}
+                <MoreVertical className={cn('h-4 w-4 text-muted-foreground', isSelected && 'text-white')} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 z-[1000]">
+                {/* <DropdownMenuItem onClick={withStopPropagation((e) => onColumnSort(column.id, 'asc'))}> */}
+                <DropdownMenuItem onClick={withStopPropagation((e) => onFieldSort(field.id, 'asc'))}>
+                    <ArrowDownAZ />
+                    Sort ascending
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={withStopPropagation((e) => onFieldSort(field.id, 'desc'))}>
+                    <ArrowUpZA />
+                    Sort descending
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={withStopPropagation((e) => setIsRenaming(true))}>
+                    <Edit />
+                    Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    onClick={withStopPropagation((e) => {
+                        // For now, we'll implement a simple prompt-based filter. In a real app, you'd show a proper filter UI
+                        const filterValue = prompt(`Filter ${field.id}:`, '');
+                        if (filterValue !== null) {
+                            onFieldFilter(field.id, filterValue);
+                        }
+                    })}
+                >
+                    <Filter />
+                    Filter
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                    onClick={withStopPropagation((e) => onFieldDelete(field.id))}
+                    className="text-destructive hover:bg-red-50! hover:text-destructive!"
+                >
+                    <Trash2 className="text-destructive" />
+                    Delete
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 

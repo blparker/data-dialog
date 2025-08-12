@@ -1,11 +1,13 @@
+import { mockDataAtStep, mockDeleteColumns, mockSchemaAtStep } from '@/hooks/use-mock-data';
 import { dataAtStep, schemaAtStep } from '@/lib/db/actions/data';
-import { mockDataAtStep, mockSchemaAtStep } from '@/hooks/use-mock-data';
 import { DataField } from '@/lib/types/data';
 import { TableDataFetchResponse, TableRowType } from '@/lib/types/table';
-import { InfiniteData, useInfiniteQuery, UseInfiniteQueryResult, useQuery } from '@tanstack/react-query';
-import { Column, ColumnDef, flexRender, getCoreRowModel, Header, Row, Table, useReactTable } from '@tanstack/react-table';
-import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
-import { useEffect, useMemo, useRef } from 'react';
+import { DragEndEvent, DragOverEvent, DragStartEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { InfiniteData, useInfiniteQuery, UseInfiniteQueryResult, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ColumnDef, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 export function useTableSchema({ chatId, stepId, useMockData = false }: { chatId: string; stepId: string; useMockData?: boolean }) {
     return useQuery({
@@ -118,5 +120,171 @@ export function useVirtualizedTable({
         })),
         totalHeight: rowVirtualizer.getTotalSize(),
         totalWidth: columnVirtualizer.getTotalSize(),
+    };
+}
+
+export function useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    threshold = SCROLL_THRESHOLD,
+}: {
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+    fetchNextPage: () => void;
+    threshold?: number;
+}) {
+    const handleScroll = useCallback(
+        (e: React.UIEvent<HTMLDivElement>) => {
+            const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+            const isNearBottom = scrollTop + clientHeight >= scrollHeight - threshold;
+
+            if (isNearBottom && hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+            }
+        },
+        [hasNextPage, isFetchingNextPage, fetchNextPage, threshold]
+    );
+
+    return { handleScroll };
+}
+
+export function useColumnReorder(columnOrder: DataField[], setColumnOrder: React.Dispatch<React.SetStateAction<DataField[]>>) {
+    const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+
+    const handleDragStart = useCallback((event: DragStartEvent) => {
+        setActiveFieldId(event.active.id as string);
+    }, []);
+
+    const handleDragEnd = useCallback(
+        (event: DragEndEvent) => {
+            const { active, over } = event;
+            if (active.id !== over?.id) {
+                setColumnOrder((prev) => {
+                    const oldIndex = prev.findIndex((field) => field.id === active.id);
+                    const newIndex = prev.findIndex((field) => field.id === over?.id);
+                    return arrayMove(prev, oldIndex, newIndex);
+                });
+            }
+            setActiveFieldId(null);
+        },
+        [setColumnOrder]
+    );
+
+    const handleDragOver = useCallback(
+        (event: DragOverEvent) => {
+            const { active, over } = event;
+            if (active.id !== over?.id) {
+                setColumnOrder((prev) => {
+                    const oldIndex = prev.findIndex((field) => field.id === active.id);
+                    const newIndex = prev.findIndex((field) => field.id === over?.id);
+                    if (oldIndex !== -1 && newIndex !== -1) {
+                        return arrayMove(prev, oldIndex, newIndex);
+                    }
+                    return prev;
+                });
+            }
+        },
+        [setColumnOrder]
+    );
+
+    return {
+        sensors,
+        activeFieldId,
+        handleDragStart,
+        handleDragEnd,
+        handleDragOver,
+    };
+}
+
+export function useTableMutations({ chatId, stepId, useMockData = false }: { chatId: string; stepId: string; useMockData?: boolean }) {
+    const queryClient = useQueryClient();
+
+    const deleteColumnsMutation = useMutation({
+        mutationFn: async ({ columnIds }: { columnIds: string[] }) => {
+            if (useMockData) {
+                return mockDeleteColumns({ columnIds });
+            }
+
+            // Real implementation - call your API
+            // return await deleteTableColumns({ chatId, stepId, columnIds });
+        },
+        onSuccess: () => {
+            // Invalidate and refetch schema to get updated column list
+            queryClient.invalidateQueries({
+                queryKey: ['table-schema', chatId, stepId],
+            });
+        },
+        onError: (error) => {
+            console.error('Failed to delete columns:', error);
+            // You could add toast notification here
+        },
+    });
+
+    const reorderColumnsMutation = useMutation({
+        mutationFn: async ({ columnOrder }: { columnOrder: DataField[] }) => {
+            if (useMockData) {
+                return Promise.resolve({ success: true });
+            }
+
+            // return await updateTableColumnOrder({ chatId, stepId, columnOrder });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey: ['table-schema', chatId, stepId],
+            });
+        },
+        onError: (error) => console.error('Failed to delete columns:', error),
+    });
+
+    const renameColumnMutation = useMutation({
+        mutationFn: async ({ columnId, newName }: { columnId: string; newName: string }) => {
+            console.log('*** renameColumn', columnId, newName);
+        },
+        onSuccess: () =>
+            queryClient.invalidateQueries({
+                queryKey: ['table-schema', chatId, stepId],
+            }),
+        onError: (error) => console.error('Failed to rename column:', error),
+    });
+
+    const deleteSelectedColumns = useCallback(
+        ({ columnIds }: { columnIds: string[] }) => {
+            if (columnIds.length === 0) return;
+
+            deleteColumnsMutation.mutate({ columnIds });
+        },
+        [deleteColumnsMutation]
+    );
+
+    const reorderColumns = useCallback(
+        (columnOrder: DataField[]) => {
+            reorderColumnsMutation.mutate({ columnOrder });
+        },
+        [reorderColumnsMutation]
+    );
+
+    const renameColumn = useCallback(
+        ({ columnId, newName }: { columnId: string; newName: string }) => {
+            renameColumnMutation.mutate({ columnId, newName });
+        },
+        [renameColumnMutation]
+    );
+
+    return {
+        deleteSelectedColumns,
+        reorderColumns,
+        renameColumn,
+        isDeleting: deleteColumnsMutation.isPending,
+        isReordering: reorderColumnsMutation.isPending,
+        deleteError: deleteColumnsMutation.error,
+        reorderError: reorderColumnsMutation.error,
+        isRenaming: renameColumnMutation.isPending,
+        renameError: renameColumnMutation.error,
     };
 }
