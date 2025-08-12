@@ -25,6 +25,10 @@ const DEFAULT_ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 40;
 
 export default function DataTable({ chatId, stepId }: { chatId: string; stepId: string }) {
+    const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
+    const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
+    const [columnOrder, setColumnOrder] = useState<DataField[]>([]);
+
     const { data: schema, isLoading: isSchemaLoading, error: schemaError } = useTableSchema({ chatId, stepId, useMockData: true });
     const {
         data,
@@ -39,13 +43,10 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
     const { table, tableContainerRef, rows, columns, totalHeight, totalWidth } = useVirtualizedTable({
         allRows,
         schema: schema ?? [],
+        columnOrder,
     });
 
     console.log('*** Re-rendering...');
-
-    const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
-    const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
-    const [columnOrder, setColumnOrder] = useState<DataField[]>([]);
 
     const handleFieldSelect = useCallback(
         (fieldId: string, event: React.MouseEvent) => {

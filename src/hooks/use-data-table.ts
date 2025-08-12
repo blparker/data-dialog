@@ -52,11 +52,21 @@ const MAX_COLUMN_WIDTH = 500;
 // When the user is within 200px of the bottom of the table, fetch the next page
 const SCROLL_THRESHOLD = 200;
 
-export function useVirtualizedTable({ allRows, schema }: { allRows: TableRowType[]; schema: DataField[] }) {
+export function useVirtualizedTable({
+    allRows,
+    schema,
+    columnOrder,
+}: {
+    allRows: TableRowType[];
+    schema: DataField[];
+    columnOrder: DataField[];
+}) {
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
     const columnDefs: ColumnDef<TableRowType>[] = useMemo(() => {
-        return schema.map((col) => ({
+        const columnsToUse = columnOrder && columnOrder.length > 0 ? columnOrder : schema;
+
+        return columnsToUse.map((col) => ({
             id: col.id,
             accessorKey: col.name,
             header: col.name,
@@ -66,7 +76,7 @@ export function useVirtualizedTable({ allRows, schema }: { allRows: TableRowType
             enableSorting: true,
             enableColumnFilter: true,
         }));
-    }, [schema]);
+    }, [columnOrder, schema]);
 
     const table = useReactTable({
         data: allRows,
@@ -95,27 +105,9 @@ export function useVirtualizedTable({ allRows, schema }: { allRows: TableRowType
     const virtualRows = rowVirtualizer.getVirtualItems();
     const virtualColumns = columnVirtualizer.getVirtualItems();
 
-    // const totalSize = rowVirtualizer.getTotalSize();
-    // const totalColumnWidth = columnVirtualizer.getTotalSize();
-
-    // function onScroll(event: React.UIEvent<HTMLDivElement>) {
-    //     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    //     const isNearBottom = scrollTop + clientHeight >= scrollHeight - SCROLL_THRESHOLD;
-
-    //     if (isNearBottom && hasNextPage && !isFetchingNextPage) {
-    //         console.log('fetching next page');
-    //         fetchNextPage();
-    //     }
-    // }
-
-    // useEffect(() => {
-    //     tableContainerRef.current?.addEventListener('scroll', onScroll);
-    // }, []);
-
     return {
         table,
         tableContainerRef,
-        // rows,
         rows: virtualRows.map((virtualRow) => ({
             row: rows[virtualRow.index],
             virtualRow,
