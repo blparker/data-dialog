@@ -7,6 +7,8 @@ import { useChat } from '@ai-sdk/react';
 import type { ChatStatus, UIMessage } from 'ai';
 import { ArrowDown, ChevronRight, Loader, SendHorizonal } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { MarkedMarkdown } from './marked-markdown';
+import { Markdown } from './markdown';
 
 export default function ChatPane({ chatId, initialMessages }: { chatId: string; initialMessages: UIMessage[] }) {
     const { messages, sendMessage, status } = useChat({
@@ -18,12 +20,7 @@ export default function ChatPane({ chatId, initialMessages }: { chatId: string; 
         <div className="flex flex-col min-w-0 h-dvh">
             <MessageList messages={messages} status={status} />
             <form>
-                <MessageInput
-                    status={status}
-                    sendMessage={(text) => {
-                        sendMessage({ text });
-                    }}
-                />
+                <MessageInput status={status} sendMessage={(text) => sendMessage({ text })} />
             </form>
         </div>
     );
@@ -34,7 +31,6 @@ function MessageList({ messages, status }: { messages: UIMessage[]; status: Chat
 
     useEffect(() => {
         if (status === 'streaming' || status === 'submitted') {
-            console.log('*** scrollToBottom');
             scrollToBottom();
         }
     }, [messages, status, scrollToBottom]);
@@ -45,7 +41,7 @@ function MessageList({ messages, status }: { messages: UIMessage[]; status: Chat
                 <Message key={message.id} message={message} status={status} />
             ))}
 
-            {(status === 'submitted' || status === 'streaming') && <ThinkingMessage />}
+            {status === 'submitted' && <ThinkingMessage />}
 
             <div ref={endRef} className="shrink-0 min-w-[24px] min-h-[24px]" />
 
@@ -70,7 +66,8 @@ function Message({ message, status }: { message: UIMessage; status: ChatStatus }
                 if (part.type === 'text') {
                     return (
                         <TextMessage key={index} role={message.role}>
-                            {part.text.trim()}
+                            {/* <MarkedMarkdown>{part.text.trim()}</MarkedMarkdown> */}
+                            <Markdown>{part.text.trim()}</Markdown>
                         </TextMessage>
                     );
                 } else if (part.type === 'reasoning') {
@@ -93,12 +90,12 @@ function TextMessage({ role, children }: { role: 'user' | 'system' | 'assistant'
     return (
         <div
             className={cn(
-                'flex flex-col rounded-lg p-2 max-w-10/12',
+                'flex flex-col rounded-lg px-4 py-3 max-w-10/12 w-fit',
                 role === 'user' ? 'items-start bg-blue-500 text-white' : 'items-end bg-neutral-200',
                 role === 'user' ? 'self-end' : 'self-start'
             )}
         >
-            {children}
+            <div className="w-full overflow-hidden">{children}</div>
         </div>
     );
 }
