@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { DuckDBInstance, DuckDBConnection } from '@duckdb/node-api';
 
 const instances: Map<string, DuckDBInstance> = new Map();

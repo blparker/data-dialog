@@ -6,6 +6,7 @@ import { TransformationStep } from '../schema';
 import { EditFieldsStepData, SourceStepData } from '@/lib/types/steps';
 import { describeSql, executeSql } from '../queries/analysis-db';
 import { TableDataFetchResponse } from '@/lib/types/table';
+import { sortTransformationSteps } from '@/lib/step-lib';
 
 export async function schemaAtStep({ chatId, stepId }: { chatId: string; stepId: string }): Promise<DataSchema> {
     const allSteps = await stepsForChatId({ chatId });
@@ -52,7 +53,7 @@ function buildSqlForStep(
         throw new Error(`Step ${targetStepId} not found`);
     }
 
-    const ancestors = topologicalSort(allSteps, targetStep);
+    const ancestors = sortTransformationSteps(allSteps, targetStep);
     const ctes = ancestors.map((s) => `${qi(s.writes)} AS (${s.sql})`).join(',\n ');
 
     const countOnlyTail = config.countOnly ? 'COUNT(*) as count' : '*';
@@ -162,23 +163,4 @@ function mapDuckDBTypeToDataType(duckDBType: string): DataType {
 
     // Default to string for unknown types
     return 'string';
-}
-
-function topologicalSort(steps: TransformationStep[], targetStep: TransformationStep): TransformationStep[] {
-    const byWrites: Map<string, TransformationStep> = new Map(steps.map((s) => [s.writes, s]));
-    const out: TransformationStep[] = [];
-    const seen = new Set<string>();
-
-    (function dfs(name: string) {
-        if (seen.has(name)) return;
-        if (!byWrites.has(name)) throw new Error(`Unknown node: ${name}`);
-
-        const s = byWrites.get(name)!;
-        s.reads.forEach(dfs);
-
-        seen.add(name);
-        out.push(s);
-    })(targetStep.writes);
-
-    return out;
 }

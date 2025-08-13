@@ -1,34 +1,51 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DataTable from './data-table';
+import { DataSource, TransformationStep } from '@/lib/db/schema';
+import { computePreviewSteps } from '@/lib/step-lib';
+import { PlusIcon } from 'lucide-react';
 
-export default function DataPane({ chatId }: { chatId: string }) {
+export default function DataPane({
+    chatId,
+    steps,
+    previewSteps,
+}: {
+    chatId: string;
+    steps: TransformationStep[];
+    previewSteps: { step: TransformationStep; dataSource: DataSource | null }[];
+}) {
     return (
         <div className="flex flex-col h-full">
             <div className="flex-1 min-h-0">
-                <TablePane chatId={chatId} />
+                <TablePane chatId={chatId} steps={steps} previewSteps={previewSteps} />
             </div>
-            <div className="h-20 bg-red-50 flex-shrink-0">Log</div>
+            <div className="h-20 flex-shrink-0">
+                <LogPane chatId={chatId} steps={steps} />
+            </div>
         </div>
     );
 }
 
-function TablePane({ chatId }: { chatId: string }) {
-    const steps = [
-        {
-            id: '07cf73fb-bdfd-4919-be51-9d46594229fa',
-            name: 'Step 1',
-        },
-    ];
-
+function TablePane({
+    chatId,
+    steps,
+    previewSteps,
+}: {
+    chatId: string;
+    steps: TransformationStep[];
+    previewSteps: { step: TransformationStep; dataSource: DataSource | null }[];
+}) {
     return (
-        <Tabs defaultValue={steps[0].id} className="flex flex-col h-full">
+        <Tabs defaultValue={previewSteps[0].step.id} className="flex flex-col h-full">
             <div className="flex justify-center">
                 <TabsList className="flex-shrink-0">
-                    {steps.map((step) => (
+                    {previewSteps.map(({ step, dataSource }) => (
                         <TabsTrigger key={step.id} value={step.id}>
-                            {step.name}
+                            {dataSource?.title ?? 'Unknown'}
                         </TabsTrigger>
                     ))}
+                    <TabsTrigger value="new">
+                        <PlusIcon />
+                    </TabsTrigger>
                 </TabsList>
             </div>
             {steps.map((step) => (
@@ -36,6 +53,23 @@ function TablePane({ chatId }: { chatId: string }) {
                     <DataTable chatId={chatId} stepId={step.id} />
                 </TabsContent>
             ))}
+            <TabsContent value="new" className="flex-1 min-h-0">
+                New
+            </TabsContent>
         </Tabs>
+    );
+}
+
+function LogPane({ chatId, steps }: { chatId: string; steps: TransformationStep[] }) {
+    return (
+        <div className="h-full bg-red-50">
+            <div className="flex gap-2 p-2">
+                {steps.map((step) => (
+                    <div key={step.id} className="border rounded p-2">
+                        {step.data.type}
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }

@@ -1,0 +1,233 @@
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Textarea } from '@/components/ui/textarea';
+import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
+import { cn } from '@/lib/utils';
+import { useChat } from '@ai-sdk/react';
+import type { ChatStatus, UIMessage } from 'ai';
+import { ArrowDown, ChevronRight, Loader, SendHorizonal } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+export default function ChatPane({ chatId, initialMessages }: { chatId: string; initialMessages: UIMessage[] }) {
+    const { messages, sendMessage, status } = useChat({
+        id: chatId,
+        messages: initialMessages,
+    });
+
+    return (
+        <div className="flex flex-col min-w-0 h-dvh">
+            <MessageList messages={messages} status={status} />
+            <form>
+                <MessageInput
+                    status={status}
+                    sendMessage={(text) => {
+                        sendMessage({ text });
+                    }}
+                />
+            </form>
+        </div>
+    );
+}
+
+function MessageList({ messages, status }: { messages: UIMessage[]; status: ChatStatus }) {
+    const { containerRef, endRef, isAtBottom, scrollToBottom, onViewportEnter, onViewportLeave } = useScrollToBottom({ status });
+
+    useEffect(() => {
+        if (status === 'streaming' || status === 'submitted') {
+            console.log('*** scrollToBottom');
+            scrollToBottom();
+        }
+    }, [messages, status, scrollToBottom]);
+
+    return (
+        <div ref={containerRef} className="flex flex-col gap-6 p-4 flex-1 overflow-y-auto">
+            {messages.map((message) => (
+                <Message key={message.id} message={message} status={status} />
+            ))}
+
+            {(status === 'submitted' || status === 'streaming') && <ThinkingMessage />}
+
+            <div ref={endRef} className="shrink-0 min-w-[24px] min-h-[24px]" />
+
+            {!isAtBottom && <ScrollToBottomButton scrollToBottom={scrollToBottom} />}
+        </div>
+    );
+}
+
+function Message({ message, status }: { message: UIMessage; status: ChatStatus }) {
+    // Reorder parts to show reasoning before text
+    const reorderedParts = [...message.parts].sort((a, b) => {
+        // Put reasoning first, then text, then other types
+        if (a.type === 'reasoning' && b.type !== 'reasoning') return -1;
+        if (a.type === 'text' && b.type === 'reasoning') return 1;
+        if (a.type === 'text' && b.type !== 'text' && b.type !== 'reasoning') return -1;
+        return 0;
+    });
+
+    return (
+        <div className="flex flex-col gap-1">
+            {reorderedParts.map((part, index) => {
+                if (part.type === 'text') {
+                    return (
+                        <TextMessage key={index} role={message.role}>
+                            {part.text.trim()}
+                        </TextMessage>
+                    );
+                } else if (part.type === 'reasoning') {
+                    return (
+                        <ReasoningMessage key={index} isLoading={false}>
+                            {part.text.trim()}
+                        </ReasoningMessage>
+                    );
+                } else if (part.type === 'dynamic-tool') {
+                    return <DynamicToolMessage key={index}>Tool</DynamicToolMessage>;
+                }
+
+                return null;
+            })}
+        </div>
+    );
+}
+
+function TextMessage({ role, children }: { role: 'user' | 'system' | 'assistant'; children: React.ReactNode }) {
+    return (
+        <div
+            className={cn(
+                'flex flex-col rounded-lg p-2 max-w-10/12',
+                role === 'user' ? 'items-start bg-blue-500 text-white' : 'items-end bg-neutral-200',
+                role === 'user' ? 'self-end' : 'self-start'
+            )}
+        >
+            {children}
+        </div>
+    );
+}
+
+function ThinkingMessage() {
+    return (
+        <div className="rounded-lg px-4 py-5 bg-neutral-200 w-fit">
+            <div className="flex gap-1.5">
+                <div className="bg-neutral-400 rounded-full w-2 h-2 animate-pulse" style={{ animationDelay: '0ms' }}></div>
+                <div className="bg-neutral-400 rounded-full w-2 h-2 animate-pulse" style={{ animationDelay: '200ms' }}></div>
+                <div className="bg-neutral-400 rounded-full w-2 h-2 animate-pulse" style={{ animationDelay: '400ms' }}></div>
+            </div>
+        </div>
+    );
+}
+
+function ReasoningMessage({ isLoading, children }: { isLoading: boolean; children: React.ReactNode }) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <div className="flex flex-col">
+            {isLoading ? (
+                <div className="flex flex-row gap-2 items-center">
+                    <div className="font-medium">Reasoning</div>
+                    <div className="animate-spin">
+                        <Loader />
+                    </div>
+                </div>
+            ) : (
+                <Collapsible
+                    open={isOpen}
+                    onOpenChange={(isOpen) => {
+                        setIsOpen(isOpen);
+                    }}
+                >
+                    <CollapsibleTrigger className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer">
+                        Reasoning
+                        <ChevronRight className={cn('w-4 h-4 transition-transform duration-200', { 'rotate-90': isOpen })} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-2">
+                        {/* <Markdown>{reasoning}</Markdown> */}
+                        <div className="whitespace-pre-wrap text-sm px-3">{children}</div>
+                    </CollapsibleContent>
+                </Collapsible>
+            )}
+        </div>
+    );
+}
+
+function DynamicToolMessage({ children }: { children: React.ReactNode }) {
+    return <div>{children}</div>;
+}
+
+function MessageInput({ status, sendMessage }: { status: ChatStatus; sendMessage: (text: string) => void }) {
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [input, setInput] = useState('');
+
+    useEffect(() => {
+        if (textareaRef.current) {
+            adjustHeight();
+        }
+    }, []);
+
+    const adjustHeight = () => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 2}px`;
+        }
+    };
+
+    const resetHeight = useCallback(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = '98px';
+        }
+    }, [textareaRef]);
+
+    const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setInput(e.target.value);
+        adjustHeight();
+    }, []);
+
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+
+                if (status !== 'ready') {
+                    console.warn('Please wait for the model to finish its response');
+                } else {
+                    sendMessage(input);
+                    setInput('');
+                }
+            }
+        },
+        [input, setInput, status, sendMessage]
+    );
+
+    return (
+        <div className="w-full p-2">
+            <div className="relative">
+                <Textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={handleChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="How can I help you?"
+                    className="min-h-[24px] max-h-[calc(50dvh)] overflow-hidden resize-none rounded-2xl pb-12"
+                />
+                <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
+                    <Button className="rounded-full p-1.5 w-8 h-8">
+                        <SendHorizonal size={14} />
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ScrollToBottomButton({ scrollToBottom }: { scrollToBottom: () => void }) {
+    return (
+        <div className="sticky bottom-2 z-50 flex justify-center">
+            <Button
+                onClick={() => scrollToBottom()}
+                variant="secondary"
+                className="rounded-full w-12 h-12 border-2 shadow-sm cursor-pointer hover:bg-secondary"
+            >
+                <ArrowDown className="w-4 h-4 text-muted-foreground" />
+            </Button>
+        </div>
+    );
+}

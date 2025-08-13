@@ -1,16 +1,28 @@
 'use client';
 
-import ChatPane from './chat-pane';
+import { UIMessage } from 'ai';
+import ChatPane from './chat/chat-pane';
 import DataPane from './data-pane';
+import { DataSource, TransformationStep } from '@/lib/db/schema';
 
-export default function ChatLayout({ chatId }: { chatId: string }) {
+export default function ChatLayout({
+    chatId,
+    steps,
+    previewSteps,
+    initialMessages,
+}: {
+    chatId: string;
+    steps: TransformationStep[];
+    previewSteps: { step: TransformationStep; dataSource: DataSource | null }[];
+    initialMessages: UIMessage[];
+}) {
     return (
         <div className="flex overflow-hidden w-full h-screen">
             <div className="w-2/3 border-r">
-                <DataPane chatId={chatId} />
+                <DataPane chatId={chatId} steps={steps} previewSteps={previewSteps} />
             </div>
             <div className="w-1/3">
-                <ChatPane chatId={chatId} />
+                <ChatPane chatId={chatId} initialMessages={initialMessages} />
             </div>
         </div>
     );
