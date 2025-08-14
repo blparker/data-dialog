@@ -27,7 +27,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 const SCROLL_THRESHOLD = 200;
 const DEFAULT_ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 40;
-const USE_MOCK_DATA = false;
+const USE_MOCK_DATA = true;
 
 export default function DataTable({ chatId, stepId }: { chatId: string; stepId: string }) {
     const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
@@ -47,21 +47,6 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
     const { deleteSelectedColumns, renameColumn } = useTableMutations({ chatId, stepId, useMockData: USE_MOCK_DATA });
 
     const allRows = useMemo(() => data?.pages?.flatMap((page) => page.rows) ?? [], [data]);
-
-    // Calculate dynamic row number column width based on total rows
-    const rowNumberColumnWidth = useMemo(() => {
-        const totalRows = allRows.length;
-        if (totalRows === 0) return 30; // Minimum width
-
-        // Calculate digits needed for the largest row number
-        const maxDigits = Math.floor(Math.log10(totalRows)) + 1;
-
-        // Base width: 20px padding + ~8px per digit + some buffer
-        const calculatedWidth = Math.max(30, 8 + maxDigits * 6 + 8);
-
-        // Cap at reasonable maximum width
-        return Math.min(calculatedWidth, 80);
-    }, [allRows.length]);
 
     const { table, tableContainerRef, rows, columns, totalHeight, totalWidth } = useVirtualizedTable({
         allRows,
@@ -138,18 +123,6 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
             <div ref={tableContainerRef} onScroll={handleScroll} className="w-full h-full overflow-auto border-t border-l">
                 <div className="relative" style={{ height: totalHeight, width: totalWidth }}>
                     <div className="sticky top-0 bg-background z-10 border-b" style={{ height: HEADER_HEIGHT, width: totalWidth }}>
-                        {/* Row number header */}
-                        <div
-                            className="absolute top-0 font-medium cursor-default select-none px-2 py-1 border-r border-b bg-muted/50 flex items-center justify-center"
-                            style={{
-                                left: 0,
-                                width: rowNumberColumnWidth,
-                                height: HEADER_HEIGHT,
-                            }}
-                        >
-                            #
-                        </div>
-
                         <SortableContext items={columnOrder.map((field) => field.id)} strategy={horizontalListSortingStrategy}>
                             {columns.map(({ column, virtualColumn }) => {
                                 const header = table.getHeaderGroups()[0]?.headers[virtualColumn.index];
@@ -165,7 +138,7 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                                         onRename={(columnId, newName) => renameColumn({ columnId, newName })}
                                         onDelete={() => handleDeleteColumns([column.id])}
                                         style={{
-                                            left: virtualColumn.start + rowNumberColumnWidth, // Offset by row number column width
+                                            left: virtualColumn.start,
                                             width: virtualColumn.size,
                                             height: HEADER_HEIGHT,
                                         }}
@@ -190,18 +163,6 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                                         width: totalWidth,
                                     }}
                                 >
-                                    {/* Row number cell */}
-                                    <div
-                                        className="absolute border-r border-b flex items-center justify-center bg-muted/30 text-muted-foreground text-sm font-mono"
-                                        style={{
-                                            left: 0,
-                                            width: rowNumberColumnWidth,
-                                            height: virtualRow.size,
-                                        }}
-                                    >
-                                        {virtualRow.index + 1}
-                                    </div>
-
                                     {columns.map(({ virtualColumn }) => {
                                         const cell = visibleCells[virtualColumn.index];
                                         const isSelected = selectedFieldIds.includes(cell.column.id);
@@ -214,7 +175,7 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                                                     isSelected && 'bg-blue-50'
                                                 )}
                                                 style={{
-                                                    left: virtualColumn.start + rowNumberColumnWidth, // Offset by row number column width
+                                                    left: virtualColumn.start,
                                                     width: virtualColumn.size,
                                                     height: virtualRow.size,
                                                 }}
