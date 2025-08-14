@@ -5,35 +5,74 @@ import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import { cn } from '@/lib/utils';
 import { useChat } from '@ai-sdk/react';
 import type { ChatStatus, UIMessage } from 'ai';
-import { ArrowDown, ChevronRight, Loader, SendHorizonal } from 'lucide-react';
+import { ArrowDown, ChevronRight, CircleStop, Loader, SendHorizonal } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MarkedMarkdown } from './marked-markdown';
 import { Markdown } from './markdown';
+import { AnimatedShinyText } from '@/components/magicui/animated-shiny-text';
 
 export default function ChatPane({ chatId, initialMessages }: { chatId: string; initialMessages: UIMessage[] }) {
-    const { messages, sendMessage, status } = useChat({
+    const { messages, sendMessage, status, stop } = useChat({
         id: chatId,
         messages: initialMessages,
     });
 
+    const isThinking = showThinkingMessage(status, messages);
+    // console.log(
+    //     `*** Status: [${status}], Show Thinking: [${isThinking}], Role: [${messages.at(-1)?.role}], Parts: [${messages.at(-1)?.parts}]`
+    // );
+
     return (
         <div className="flex flex-col min-w-0 h-dvh">
-            <MessageList messages={messages} status={status} />
+            <MessageList messages={messages} status={status} isThinking={isThinking} />
             <form>
-                <MessageInput status={status} sendMessage={(text) => sendMessage({ text })} />
+                <MessageInput status={status} isThinking={isThinking} sendMessage={(text) => sendMessage({ text })} stop={stop} />
             </form>
         </div>
     );
 }
 
-function MessageList({ messages, status }: { messages: UIMessage[]; status: ChatStatus }) {
-    const { containerRef, endRef, isAtBottom, scrollToBottom, onViewportEnter, onViewportLeave } = useScrollToBottom({ status });
+function MessageList({ messages, status, isThinking }: { messages: UIMessage[]; status: ChatStatus; isThinking: boolean }) {
+    const { containerRef, endRef, isAtBottom, scrollToBottom } = useScrollToBottom({ status });
+    const streamingRef = useRef(false);
 
+    // Scroll to bottom on mount
     useEffect(() => {
-        if (status === 'streaming' || status === 'submitted') {
-            scrollToBottom();
+        scrollToBottom('instant');
+    }, []);
+
+    // Scroll to bottom when a new message is submitted
+    useEffect(() => {
+        if (status === 'submitted') {
+            scrollToBottom('instant');
         }
-    }, [messages, status, scrollToBottom]);
+    }, [status, scrollToBottom]);
+
+    // useEffect(() => {
+    //     if (status === 'streaming' && isAtBottom) {
+    //         console.log('Streaming and at bottom, scrolling to bottom');
+    //         scrollToBottom('instant');
+    //     }
+    // }, [messages, status, scrollToBottom, isAtBottom]);
+    useEffect(() => {
+        if (status === 'streaming') {
+            streamingRef.current = true;
+
+            // Use requestAnimationFrame to ensure smooth scrolling during streaming
+            const scrollDuringStreaming = () => {
+                if (streamingRef.current && isAtBottom) {
+                    scrollToBottom('instant');
+                }
+                if (streamingRef.current) {
+                    requestAnimationFrame(scrollDuringStreaming);
+                }
+            };
+
+            requestAnimationFrame(scrollDuringStreaming);
+        } else {
+            streamingRef.current = false;
+        }
+    }, [status, isAtBottom, scrollToBottom]);
 
     return (
         <div ref={containerRef} className="flex flex-col gap-6 p-4 flex-1 overflow-y-auto">
@@ -41,13 +80,37 @@ function MessageList({ messages, status }: { messages: UIMessage[]; status: Chat
                 <Message key={message.id} message={message} status={status} />
             ))}
 
-            {status === 'submitted' && <ThinkingMessage />}
+            {isThinking && <ThinkingMessage />}
 
             <div ref={endRef} className="shrink-0 min-w-[24px] min-h-[24px]" />
 
             {!isAtBottom && <ScrollToBottomButton scrollToBottom={scrollToBottom} />}
         </div>
     );
+}
+
+function showThinkingMessage(status: ChatStatus, messages: UIMessage[]) {
+    if (status == 'ready') {
+        return false;
+    } else if (status === 'submitted') {
+        return true;
+    } else if (status === 'streaming') {
+        const lastMessage = messages.at(-1);
+        if (!lastMessage) {
+            return true;
+        }
+
+        const { role, parts } = lastMessage;
+        const textIsEmpty = parts.some((part) => part.type === 'text' && part.text.trim().length === 0);
+
+        if (role === 'assistant' && parts.length === 0) {
+            return true;
+        } else if (role === 'assistant' && parts.length > 0 && textIsEmpty) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function Message({ message, status }: { message: UIMessage; status: ChatStatus }) {
@@ -67,12 +130,14 @@ function Message({ message, status }: { message: UIMessage; status: ChatStatus }
                     return (
                         <TextMessage key={index} role={message.role}>
                             {/* <MarkedMarkdown>{part.text.trim()}</MarkedMarkdown> */}
-                            <Markdown>{part.text.trim()}</Markdown>
+                            <Markdown role={message.role}>{part.text.trim()}</Markdown>
                         </TextMessage>
                     );
                 } else if (part.type === 'reasoning') {
+                    const isLoading = status === 'streaming' && part.state === 'streaming';
+
                     return (
-                        <ReasoningMessage key={index} isLoading={false}>
+                        <ReasoningMessage key={index} isLoading={isLoading}>
                             {part.text.trim()}
                         </ReasoningMessage>
                     );
@@ -87,12 +152,22 @@ function Message({ message, status }: { message: UIMessage; status: ChatStatus }
 }
 
 function TextMessage({ role, children }: { role: 'user' | 'system' | 'assistant'; children: React.ReactNode }) {
+    // return (
+    //     <div
+    //         className={cn(
+    //             'flex flex-col rounded-lg px-4 py-3 max-w-10/12 w-fit',
+    //             role === 'user' ? 'items-start bg-blue-500 text-white' : 'items-end bg-neutral-200',
+    //             role === 'user' ? 'self-end' : 'self-start'
+    //         )}
+    //     >
+    //         <div className="w-full overflow-hidden">{children}</div>
+    //     </div>
+    // );
     return (
         <div
             className={cn(
-                'flex flex-col rounded-lg px-4 py-3 max-w-10/12 w-fit',
-                role === 'user' ? 'items-start bg-blue-500 text-white' : 'items-end bg-neutral-200',
-                role === 'user' ? 'self-end' : 'self-start'
+                'flex flex-col',
+                role === 'user' && 'self-end rounded-lg px-4 py-3 max-w-10/12 w-fit items-start bg-blue-500 text-white'
             )}
         >
             <div className="w-full overflow-hidden">{children}</div>
@@ -117,30 +192,30 @@ function ReasoningMessage({ isLoading, children }: { isLoading: boolean; childre
 
     return (
         <div className="flex flex-col">
-            {isLoading ? (
-                <div className="flex flex-row gap-2 items-center">
-                    <div className="font-medium">Reasoning</div>
-                    <div className="animate-spin">
-                        <Loader />
-                    </div>
-                </div>
-            ) : (
-                <Collapsible
-                    open={isOpen}
-                    onOpenChange={(isOpen) => {
-                        setIsOpen(isOpen);
-                    }}
-                >
-                    <CollapsibleTrigger className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer">
-                        Reasoning
-                        <ChevronRight className={cn('w-4 h-4 transition-transform duration-200', { 'rotate-90': isOpen })} />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-2">
-                        {/* <Markdown>{reasoning}</Markdown> */}
-                        <div className="whitespace-pre-wrap text-sm px-3">{children}</div>
-                    </CollapsibleContent>
-                </Collapsible>
-            )}
+            <Collapsible
+                open={isOpen}
+                onOpenChange={(isOpen) => {
+                    setIsOpen(isOpen);
+                }}
+            >
+                <CollapsibleTrigger className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer">
+                    {isLoading ? (
+                        <AnimatedShinyText speed={2} className="text-muted-foreground/80 text-sm mr-auto flex items-center gap-1">
+                            Reasoning
+                            <ChevronRight className={cn('w-4 h-4 transition-transform duration-200', { 'rotate-90': isOpen })} />
+                        </AnimatedShinyText>
+                    ) : (
+                        <>
+                            Reasoning
+                            <ChevronRight className={cn('w-4 h-4 transition-transform duration-200', { 'rotate-90': isOpen })} />
+                        </>
+                    )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                    {/* <Markdown>{reasoning}</Markdown> */}
+                    <div className="whitespace-pre-wrap text-sm px-3">{children}</div>
+                </CollapsibleContent>
+            </Collapsible>
         </div>
     );
 }
@@ -149,7 +224,17 @@ function DynamicToolMessage({ children }: { children: React.ReactNode }) {
     return <div>{children}</div>;
 }
 
-function MessageInput({ status, sendMessage }: { status: ChatStatus; sendMessage: (text: string) => void }) {
+function MessageInput({
+    status,
+    isThinking,
+    sendMessage,
+    stop,
+}: {
+    status: ChatStatus;
+    isThinking: boolean;
+    sendMessage: (text: string) => void;
+    stop: () => void;
+}) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [input, setInput] = useState('');
 
@@ -186,13 +271,18 @@ function MessageInput({ status, sendMessage }: { status: ChatStatus; sendMessage
                 if (status !== 'ready') {
                     console.warn('Please wait for the model to finish its response');
                 } else {
-                    sendMessage(input);
-                    setInput('');
+                    submitForm();
                 }
             }
         },
         [input, setInput, status, sendMessage]
     );
+
+    const submitForm = useCallback(() => {
+        sendMessage(input);
+        setInput('');
+        resetHeight();
+    }, [input, sendMessage, setInput, resetHeight]);
 
     return (
         <div className="w-full p-2">
@@ -203,11 +293,18 @@ function MessageInput({ status, sendMessage }: { status: ChatStatus; sendMessage
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     placeholder="How can I help you?"
-                    className="min-h-[24px] max-h-[calc(50dvh)] overflow-hidden resize-none rounded-2xl pb-12"
+                    rows={2}
+                    className="min-h-[24px] max-h-[calc(50dvh)] overflow-hidden resize-none pb-10 text-base! field-sizing-fixed"
                 />
                 <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
-                    <Button className="rounded-full p-1.5 w-8 h-8">
-                        <SendHorizonal size={14} />
+                    <Button
+                        className="rounded-full p-1.5 w-8 h-8 cursor-pointer"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            isThinking ? stop() : submitForm();
+                        }}
+                    >
+                        {isThinking ? <CircleStop size={14} /> : <SendHorizonal size={14} />}
                     </Button>
                 </div>
             </div>

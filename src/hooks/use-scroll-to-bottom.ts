@@ -54,6 +54,7 @@ export function useScrollToBottom({ status }: { status: ChatStatus }) {
     }, []);
 
     useEffect(() => {
+        // console.log(`Scroll behavior changed to: [${scrollBehavior}], endRef: [${endRef.current}]`);
         if (scrollBehavior) {
             endRef.current?.scrollIntoView({ behavior: scrollBehavior });
             setScrollBehavior(false);
@@ -62,35 +63,36 @@ export function useScrollToBottom({ status }: { status: ChatStatus }) {
 
     const scrollToBottom = useCallback(
         (scrollBehavior: ScrollBehavior = 'smooth') => {
+            // console.log(`Scroll to bottom called with behavior: [${scrollBehavior}]`);
             setScrollBehavior(scrollBehavior);
         },
         [setScrollBehavior]
     );
 
-    function onViewportEnter() {
-        setIsAtBottom(true);
-    }
+    // function onViewportEnter() {
+    //     setIsAtBottom(true);
+    // }
 
-    function onViewportLeave() {
-        setIsAtBottom(false);
-    }
+    // function onViewportLeave() {
+    //     setIsAtBottom(false);
+    // }
 
-    useEffect(() => {
-        if (status === 'submitted') {
-            scrollToBottom();
-        }
-    }, [status, scrollToBottom]);
+    // useEffect(() => {
+    //     if (status === 'submitted') {
+    //         scrollToBottom();
+    //     }
+    // }, [status, scrollToBottom]);
 
-    useEffect(() => {
-        scrollToBottom('instant');
-    }, [scrollToBottom]);
+    // useEffect(() => {
+    //     scrollToBottom('instant');
+    // }, [scrollToBottom]);
 
     return {
         containerRef,
         endRef,
         isAtBottom,
         scrollToBottom,
-        onViewportEnter,
-        onViewportLeave,
+        // onViewportEnter,
+        // onViewportLeave,
     };
 }
