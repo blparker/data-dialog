@@ -292,6 +292,10 @@ function MessageInput({
     );
 
     const submitForm = useCallback(() => {
+        if (input.trim().length === 0) {
+            return;
+        }
+
         sendMessage(input);
         setInput('');
         resetHeight();
