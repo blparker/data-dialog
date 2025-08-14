@@ -48,31 +48,42 @@ function MessageList({ messages, status, isThinking }: { messages: UIMessage[]; 
         }
     }, [status, scrollToBottom]);
 
-    // useEffect(() => {
-    //     if (status === 'streaming' && isAtBottom) {
-    //         console.log('Streaming and at bottom, scrolling to bottom');
-    //         scrollToBottom('instant');
-    //     }
-    // }, [messages, status, scrollToBottom, isAtBottom]);
+    // Scroll during streaming - simplified and more reliable
     useEffect(() => {
         if (status === 'streaming') {
             streamingRef.current = true;
 
-            // Use requestAnimationFrame to ensure smooth scrolling during streaming
+            // Use a more efficient approach with throttled scrolling
+            let animationId: number;
+
             const scrollDuringStreaming = () => {
-                if (streamingRef.current && isAtBottom) {
-                    scrollToBottom('instant');
-                }
                 if (streamingRef.current) {
-                    requestAnimationFrame(scrollDuringStreaming);
+                    scrollToBottom('instant');
+                    animationId = requestAnimationFrame(scrollDuringStreaming);
                 }
             };
 
-            requestAnimationFrame(scrollDuringStreaming);
+            // Start the scrolling loop
+            animationId = requestAnimationFrame(scrollDuringStreaming);
+
+            // Cleanup function to stop the animation loop
+            return () => {
+                streamingRef.current = false;
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                }
+            };
         } else {
             streamingRef.current = false;
         }
-    }, [status, isAtBottom, scrollToBottom]);
+    }, [status, scrollToBottom]);
+
+    // Scroll when messages change during streaming
+    useEffect(() => {
+        if (status === 'streaming' && messages.length > 0) {
+            scrollToBottom('instant');
+        }
+    }, [messages, status, scrollToBottom]);
 
     return (
         <div ref={containerRef} className="flex flex-col gap-6 p-4 flex-1 overflow-y-auto">
@@ -82,7 +93,7 @@ function MessageList({ messages, status, isThinking }: { messages: UIMessage[]; 
 
             {isThinking && <ThinkingMessage />}
 
-            <div ref={endRef} className="shrink-0 min-w-[24px] min-h-[24px]" />
+            <div ref={endRef} className="shrink-0 min-w-[16px] min-h-[16px]" />
 
             {!isAtBottom && <ScrollToBottomButton scrollToBottom={scrollToBottom} />}
         </div>

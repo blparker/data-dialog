@@ -7,7 +7,6 @@ export function useScrollToBottom({ status }: { status: ChatStatus }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const endRef = useRef<HTMLDivElement>(null);
     const [isAtBottom, setIsAtBottom] = useState(false);
-    const [scrollBehavior, setScrollBehavior] = useState<ScrollBehavior | false>(false);
 
     useEffect(() => {
         const endElement = endRef.current;
@@ -53,46 +52,17 @@ export function useScrollToBottom({ status }: { status: ChatStatus }) {
         };
     }, []);
 
-    useEffect(() => {
-        // console.log(`Scroll behavior changed to: [${scrollBehavior}], endRef: [${endRef.current}]`);
-        if (scrollBehavior) {
-            endRef.current?.scrollIntoView({ behavior: scrollBehavior });
-            setScrollBehavior(false);
+    const scrollToBottom = useCallback((scrollBehavior: ScrollBehavior = 'smooth') => {
+        // Direct DOM manipulation for immediate response - perfect for streaming
+        if (endRef.current) {
+            endRef.current.scrollIntoView({ behavior: scrollBehavior });
         }
-    }, [scrollBehavior, setScrollBehavior]);
-
-    const scrollToBottom = useCallback(
-        (scrollBehavior: ScrollBehavior = 'smooth') => {
-            // console.log(`Scroll to bottom called with behavior: [${scrollBehavior}]`);
-            setScrollBehavior(scrollBehavior);
-        },
-        [setScrollBehavior]
-    );
-
-    // function onViewportEnter() {
-    //     setIsAtBottom(true);
-    // }
-
-    // function onViewportLeave() {
-    //     setIsAtBottom(false);
-    // }
-
-    // useEffect(() => {
-    //     if (status === 'submitted') {
-    //         scrollToBottom();
-    //     }
-    // }, [status, scrollToBottom]);
-
-    // useEffect(() => {
-    //     scrollToBottom('instant');
-    // }, [scrollToBottom]);
+    }, []);
 
     return {
         containerRef,
         endRef,
         isAtBottom,
         scrollToBottom,
-        // onViewportEnter,
-        // onViewportLeave,
     };
 }
