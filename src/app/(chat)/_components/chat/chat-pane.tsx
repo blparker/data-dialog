@@ -86,12 +86,14 @@ function MessageList({ messages, status, isThinking }: { messages: UIMessage[]; 
     }, [messages, status, scrollToBottom]);
 
     return (
-        <div ref={containerRef} className="flex flex-col gap-6 p-4 flex-1 overflow-y-auto">
-            {messages.map((message) => (
-                <Message key={message.id} message={message} status={status} />
-            ))}
+        <div ref={containerRef} className="flex-1 p-4 overflow-y-auto">
+            <div className="flex flex-col gap-6">
+                {messages.map((message) => (
+                    <Message key={message.id} message={message} status={status} />
+                ))}
+            </div>
 
-            {isThinking && <ThinkingMessage />}
+            {isThinking && <ThinkingMessage className="mt-3" />}
 
             <div ref={endRef} className="shrink-0 min-w-[16px] min-h-[16px]" />
 
@@ -186,9 +188,9 @@ function TextMessage({ role, children }: { role: 'user' | 'system' | 'assistant'
     );
 }
 
-function ThinkingMessage() {
+function ThinkingMessage({ className }: { className?: string }) {
     return (
-        <div className="rounded-lg px-4 py-5 bg-neutral-200 w-fit">
+        <div className={cn('rounded-lg px-4 py-5 bg-neutral-200 w-fit', className)}>
             <div className="flex gap-1.5">
                 <div className="bg-neutral-400 rounded-full w-2 h-2 animate-pulse" style={{ animationDelay: '0ms' }}></div>
                 <div className="bg-neutral-400 rounded-full w-2 h-2 animate-pulse" style={{ animationDelay: '200ms' }}></div>

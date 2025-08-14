@@ -1,15 +1,22 @@
+import { cn } from '@/lib/utils';
+import { UIMessage } from 'ai';
 import Link from 'next/link';
 import { memo, useMemo } from 'react';
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { cn } from '@/lib/utils';
-import { UIMessage } from 'ai';
 
 function createComponents(role: UIMessage['role']): Partial<Components> {
     return {
         // @ts-expect-error code block
         code: (props) => <SimpleCodeBlock {...props} role={role} />,
         pre: ({ children }) => <>{children}</>,
+        p: ({ node, children, ...props }) => {
+            return (
+                <p className="mb-4 last:mb-0" {...props}>
+                    {children}
+                </p>
+            );
+        },
         ol: ({ node, children, ...props }) => {
             return (
                 <ol className="list-decimal list-outside ml-4" {...props}>
@@ -154,26 +161,3 @@ function SimpleCodeBlock({
         );
     }
 }
-
-// function CodeBlock({ node, inline, className, children, ...props }: { node: any; inline: boolean; className: string; children: any }) {
-//     console.log('*** CHILDREN', children);
-
-//     if (!inline) {
-//         return (
-//             <span className="not-prose flex flex-col">
-//                 <pre
-//                     {...props}
-//                     className={`text-sm w-full overflow-x-auto dark:bg-zinc-900 p-4 border border-zinc-200 dark:border-zinc-700 rounded-xl dark:text-zinc-50 text-zinc-900`}
-//                 >
-//                     <code className="whitespace-pre-wrap break-words">{children}</code>
-//                 </pre>
-//             </span>
-//         );
-//     } else {
-//         return (
-//             <code className={`${className} text-sm bg-zinc-100 dark:bg-zinc-800 py-0.5 px-1 rounded-md`} {...props}>
-//                 {children}
-//             </code>
-//         );
-//     }
-// }
