@@ -156,7 +156,7 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                     >
                         {/* Line number header */}
                         <div
-                            className="sticky left-0 bg-background z-20 border-r font-medium flex items-center justify-center flex-shrink-0"
+                            className="sticky left-0 bg-background z-20 border-r font-medium flex items-center justify-center flex-shrink-0 border-b"
                             style={{
                                 width: LINE_NUMBER_WIDTH,
                                 height: HEADER_HEIGHT,
