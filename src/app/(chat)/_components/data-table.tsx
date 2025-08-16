@@ -28,9 +28,11 @@ const SCROLL_THRESHOLD = 200;
 const DEFAULT_ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 40;
 const USE_MOCK_DATA = true;
+const LINE_NUMBER_WIDTH = 60;
 
 export default function DataTable({ chatId, stepId }: { chatId: string; stepId: string }) {
     const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
+    const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
     // const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
     const [columnOrder, setColumnOrder] = useState<DataField[]>([]);
 
@@ -104,6 +106,32 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
         return () => window.removeEventListener('keydown', onKeyPress);
     }, [handleDeleteColumns, selectedFieldIds]);
 
+    const handleRowSelect = useCallback(
+        (rowId: string, event: React.MouseEvent) => {
+            const isMultiSelect = event.ctrlKey || event.metaKey;
+            const isRangeSelect = event.shiftKey;
+
+            setSelectedRowIds((prev) => {
+                if (isMultiSelect) {
+                    if (prev.includes(rowId)) {
+                        return prev.filter((id) => id !== rowId);
+                    } else {
+                        return [...prev, rowId];
+                    }
+                } else if (isRangeSelect) {
+                    return getRangeRowIds(prev, rowId, allRows);
+                } else {
+                    if (prev.length === 1 && prev[0] === rowId) {
+                        return [];
+                    } else {
+                        return [rowId];
+                    }
+                }
+            });
+        },
+        [allRows]
+    );
+
     if (isSchemaLoading) {
         return <FullScreenMessage>Loading...</FullScreenMessage>;
     }
@@ -121,49 +149,67 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
             collisionDetection={closestCenter}
         >
             <div ref={tableContainerRef} onScroll={handleScroll} className="w-full h-full overflow-auto border-t border-l">
-                <div className="relative" style={{ height: totalHeight, width: totalWidth }}>
-                    <div className="sticky top-0 bg-background z-10 border-b" style={{ height: HEADER_HEIGHT, width: totalWidth }}>
-                        <SortableContext items={columnOrder.map((field) => field.id)} strategy={horizontalListSortingStrategy}>
-                            {columns.map(({ column, virtualColumn }) => {
-                                const header = table.getHeaderGroups()[0]?.headers[virtualColumn.index];
-                                const isSelected = selectedFieldIds.includes(column.id);
+                <div className="relative" style={{ height: totalHeight, width: totalWidth + LINE_NUMBER_WIDTH }}>
+                    <div
+                        className="sticky top-0 bg-background z-10 border-b flex"
+                        style={{ height: HEADER_HEIGHT, width: totalWidth + LINE_NUMBER_WIDTH }}
+                    >
+                        {/* Line number header */}
+                        <div
+                            className="sticky left-0 bg-background z-20 border-r font-medium flex items-center justify-center flex-shrink-0"
+                            style={{
+                                width: LINE_NUMBER_WIDTH,
+                                height: HEADER_HEIGHT,
+                            }}
+                        >
+                            #
+                        </div>
 
-                                return (
-                                    <DataTableHead
-                                        key={column.id}
-                                        field={column}
-                                        header={header}
-                                        isSelected={isSelected}
-                                        onFieldSelect={handleFieldSelect}
-                                        onRename={(columnId, newName) => renameColumn({ columnId, newName })}
-                                        onDelete={() => handleDeleteColumns([column.id])}
-                                        style={{
-                                            left: virtualColumn.start,
-                                            width: virtualColumn.size,
-                                            height: HEADER_HEIGHT,
-                                        }}
-                                    />
-                                );
-                            })}
-                        </SortableContext>
+                        <div className="relative flex-1" style={{ width: totalWidth }}>
+                            <SortableContext items={columnOrder.map((field) => field.id)} strategy={horizontalListSortingStrategy}>
+                                {columns.map(({ column, virtualColumn }) => {
+                                    const header = table.getHeaderGroups()[0]?.headers[virtualColumn.index];
+                                    const isSelected = selectedFieldIds.includes(column.id);
+
+                                    return (
+                                        <DataTableHead
+                                            key={column.id}
+                                            field={column}
+                                            header={header}
+                                            isSelected={isSelected}
+                                            onFieldSelect={handleFieldSelect}
+                                            onRename={(columnId, newName) => renameColumn({ columnId, newName })}
+                                            onDelete={() => handleDeleteColumns([column.id])}
+                                            style={{
+                                                left: virtualColumn.start,
+                                                width: virtualColumn.size,
+                                                height: HEADER_HEIGHT,
+                                            }}
+                                        />
+                                    );
+                                })}
+                            </SortableContext>
+                        </div>
                     </div>
 
                     <div className="relative">
                         {rows.map(({ row, virtualRow }) => {
                             const visibleCells = row.getVisibleCells();
+                            const isRowSelected = selectedRowIds.includes(row.id);
+                            const rowNumber = parseInt(row.id) + 1;
 
                             return (
                                 <div
                                     key={row.id}
-                                    className="absolute inset-0"
+                                    className="absolute flex"
                                     style={{
                                         top: virtualRow.start,
                                         left: 0,
                                         height: virtualRow.size,
-                                        width: totalWidth,
+                                        width: totalWidth + LINE_NUMBER_WIDTH,
                                     }}
                                 >
-                                    {columns.map(({ virtualColumn }) => {
+                                    {/* {columns.map(({ virtualColumn }) => {
                                         const cell = visibleCells[virtualColumn.index];
                                         const isSelected = selectedFieldIds.includes(cell.column.id);
 
@@ -185,7 +231,50 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                                                 </div>
                                             </div>
                                         );
-                                    })}
+                                    })} */}
+                                    {/* Sticky line number cell */}
+                                    <div
+                                        className={cn(
+                                            'sticky left-0 border-r border-b flex items-center justify-center cursor-pointer bg-background hover:bg-muted font-mono text-sm text-muted-foreground flex-shrink-0',
+                                            isRowSelected && 'bg-blue-500 text-white hover:bg-blue-600'
+                                        )}
+                                        style={{
+                                            width: LINE_NUMBER_WIDTH,
+                                            height: virtualRow.size,
+                                            zIndex: 5,
+                                        }}
+                                        onClick={(e) => handleRowSelect(row.id, e)}
+                                    >
+                                        {rowNumber}
+                                    </div>
+
+                                    {/* Scrollable cells */}
+                                    <div className="relative flex-1" style={{ width: totalWidth }}>
+                                        {columns.map(({ virtualColumn }) => {
+                                            const cell = visibleCells[virtualColumn.index];
+                                            const isColumnSelected = selectedFieldIds.includes(cell.column.id);
+
+                                            return (
+                                                <div
+                                                    key={cell.id}
+                                                    className={cn(
+                                                        'absolute border-r border-b flex items-center px-2 overflow-hidden',
+                                                        isColumnSelected && 'bg-blue-50',
+                                                        isRowSelected && 'bg-blue-50'
+                                                    )}
+                                                    style={{
+                                                        left: virtualColumn.start,
+                                                        width: virtualColumn.size,
+                                                        height: virtualRow.size,
+                                                    }}
+                                                >
+                                                    <div className="truncate w-full">
+                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             );
                         })}
@@ -375,4 +464,37 @@ function getRangeFieldIds(prev: string[], fieldId: string, schema?: DataField[])
     const rangeFieldIds = schema.slice(startIndex, endIndex + 1).map((field) => field.id);
 
     return rangeFieldIds;
+}
+
+function getRangeRowIds(prev: string[], rowId: string, allRows: any[]) {
+    // If no rows are selected, just select the clicked row
+    if (prev.length === 0) {
+        return [rowId];
+    }
+
+    // If no rows are available, just select the clicked row
+    if (!allRows || allRows.length === 0) {
+        return [rowId];
+    }
+
+    // Find the anchor row (first selected row) and the clicked row
+    const anchorRowId = prev[0]; // Use the first selected row as anchor
+    const anchorIndex = allRows.findIndex((_, index) => index.toString() === anchorRowId);
+    const clickedIndex = allRows.findIndex((_, index) => index.toString() === rowId);
+
+    // If either row is not found, just select the clicked row
+    if (anchorIndex === -1 || clickedIndex === -1) {
+        return [rowId];
+    }
+
+    // Select all rows between anchor and clicked (inclusive)
+    const startIndex = Math.min(anchorIndex, clickedIndex);
+    const endIndex = Math.max(anchorIndex, clickedIndex);
+
+    const rangeRowIds = [];
+    for (let i = startIndex; i <= endIndex; i++) {
+        rangeRowIds.push(i.toString());
+    }
+
+    return rangeRowIds;
 }
