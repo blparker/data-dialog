@@ -158,10 +158,10 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
             onDragOver={handleDragOver}
             collisionDetection={closestCenter}
         >
-            <div ref={tableContainerRef} onScroll={handleScroll} className="w-full h-full overflow-auto border-t border-l">
+            <div ref={tableContainerRef} onScroll={handleScroll} className="w-full h-full overflow-auto border-t">
                 <div className="relative" style={{ height: totalHeight, width: totalWidth + LINE_NUMBER_WIDTH }}>
                     <div
-                        className="sticky top-0 bg-background z-10 border-b flex"
+                        className="sticky top-0 bg-muted z-10 border-b flex"
                         style={{ height: HEADER_HEIGHT, width: totalWidth + LINE_NUMBER_WIDTH }}
                     >
                         {/* Line number header */}
@@ -219,29 +219,6 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                                         width: totalWidth + LINE_NUMBER_WIDTH,
                                     }}
                                 >
-                                    {/* {columns.map(({ virtualColumn }) => {
-                                        const cell = visibleCells[virtualColumn.index];
-                                        const isSelected = selectedFieldIds.includes(cell.column.id);
-
-                                        return (
-                                            <div
-                                                key={cell.id}
-                                                className={cn(
-                                                    'absolute border-r border-b flex items-center px-2 overflow-hidden',
-                                                    isSelected && 'bg-blue-50'
-                                                )}
-                                                style={{
-                                                    left: virtualColumn.start,
-                                                    width: virtualColumn.size,
-                                                    height: virtualRow.size,
-                                                }}
-                                            >
-                                                <div className="truncate w-full">
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </div>
-                                            </div>
-                                        );
-                                    })} */}
                                     {/* Sticky line number cell */}
                                     <div
                                         className={cn(
@@ -268,7 +245,7 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                                                 <div
                                                     key={cell.id}
                                                     className={cn(
-                                                        'absolute border-r border-b flex items-center px-2 overflow-hidden',
+                                                        'absolute border-r last:border-r-0 border-b flex items-center px-2 overflow-hidden',
                                                         isColumnSelected && 'bg-blue-50',
                                                         isRowSelected && 'bg-blue-50'
                                                     )}
@@ -327,7 +304,7 @@ function DataTableHead({
             }}
             onDoubleClick={() => setIsRenaming(true)}
             className={cn(
-                'absolute top-0 font-medium cursor-pointer select-none px-2 py-1 border-r flex items-center group',
+                'absolute top-0 font-medium cursor-pointer select-none px-2 py-1 border-r last:border-r-0 flex items-center group ',
                 isSelected && 'bg-blue-500 text-white',
                 isDragging && !isRenaming && 'cursor-ew-resize opacity-50'
             )}

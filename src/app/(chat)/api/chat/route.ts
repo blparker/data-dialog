@@ -1,6 +1,7 @@
+import systemPrompt from '@/lib/ai/prompts';
 import { aiProvider } from '@/lib/ai/providers';
 import { getChatById, saveMessage } from '@/lib/db/queries/chat';
-import { convertToModelMessages, streamText, UIMessage, generateId } from 'ai';
+import { convertToModelMessages, streamText, UIMessage, generateId, stepCountIs } from 'ai';
 
 export async function POST(req: Request) {
     const { id, messages }: { id: string; messages: UIMessage[] } = await req.json();
@@ -20,8 +21,10 @@ export async function POST(req: Request) {
 
     const result = streamText({
         model: aiProvider.languageModel('chat-model-reasoning-local'),
-        system: 'You are a helpful assistant.',
+        // system: 'You are a helpful assistant.',
+        system: systemPrompt(),
         messages: convertToModelMessages(messages),
+        stopWhen: stepCountIs(3),
     });
 
     return result.toUIMessageStreamResponse({
