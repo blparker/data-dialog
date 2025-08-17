@@ -67,6 +67,11 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
             const isMultiSelect = event.ctrlKey || event.metaKey;
             const isRangeSelect = event.shiftKey;
 
+            // If meta key is not pressed and rows are selected, deselect rows and select column
+            if (!isMultiSelect && selectedRowIds.length > 0) {
+                setSelectedRowIds([]);
+            }
+
             setSelectedFieldIds((prev) => {
                 if (isMultiSelect) {
                     if (prev.includes(fieldId)) {
@@ -85,31 +90,18 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                 }
             });
         },
-        [schema]
+        [schema, selectedRowIds]
     );
-
-    const handleDeleteColumns = useCallback(
-        (columnIds: string[]) => {
-            setSelectedFieldIds((prev) => prev.filter((id) => !columnIds.includes(id)));
-            deleteSelectedColumns({ columnIds });
-        },
-        [deleteSelectedColumns]
-    );
-
-    useEffect(() => {
-        function onKeyPress(event: KeyboardEvent) {
-            if ((event.key === 'Delete' || event.key === 'Backspace') && selectedFieldIds.length > 0) {
-                handleDeleteColumns(selectedFieldIds);
-            }
-        }
-        window.addEventListener('keydown', onKeyPress);
-        return () => window.removeEventListener('keydown', onKeyPress);
-    }, [handleDeleteColumns, selectedFieldIds]);
 
     const handleRowSelect = useCallback(
         (rowId: string, event: React.MouseEvent) => {
             const isMultiSelect = event.ctrlKey || event.metaKey;
             const isRangeSelect = event.shiftKey;
+
+            // If meta key is not pressed and columns are selected, deselect columns and select row
+            if (!isMultiSelect && selectedFieldIds.length > 0) {
+                setSelectedFieldIds([]);
+            }
 
             setSelectedRowIds((prev) => {
                 if (isMultiSelect) {
@@ -129,8 +121,26 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                 }
             });
         },
-        [allRows]
+        [allRows, selectedFieldIds]
     );
+
+    const handleDeleteColumns = useCallback(
+        (columnIds: string[]) => {
+            setSelectedFieldIds((prev) => prev.filter((id) => !columnIds.includes(id)));
+            deleteSelectedColumns({ columnIds });
+        },
+        [deleteSelectedColumns]
+    );
+
+    useEffect(() => {
+        function onKeyPress(event: KeyboardEvent) {
+            if ((event.key === 'Delete' || event.key === 'Backspace') && selectedFieldIds.length > 0) {
+                handleDeleteColumns(selectedFieldIds);
+            }
+        }
+        window.addEventListener('keydown', onKeyPress);
+        return () => window.removeEventListener('keydown', onKeyPress);
+    }, [handleDeleteColumns, selectedFieldIds]);
 
     if (isSchemaLoading) {
         return <FullScreenMessage>Loading...</FullScreenMessage>;
