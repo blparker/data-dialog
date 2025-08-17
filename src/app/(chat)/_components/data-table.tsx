@@ -156,7 +156,7 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                     >
                         {/* Line number header */}
                         <div
-                            className="sticky left-0 bg-background z-20 border-r font-medium flex items-center justify-center flex-shrink-0 border-b"
+                            className="sticky left-0 bg-muted z-20 border-r font-medium flex items-center justify-center flex-shrink-0 border-b"
                             style={{
                                 width: LINE_NUMBER_WIDTH,
                                 height: HEADER_HEIGHT,
@@ -235,7 +235,7 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                                     {/* Sticky line number cell */}
                                     <div
                                         className={cn(
-                                            'sticky left-0 border-r border-b flex items-center justify-center cursor-pointer bg-background hover:bg-muted font-mono text-sm text-muted-foreground flex-shrink-0',
+                                            'sticky left-0 border-r border-b flex items-center justify-center cursor-pointer bg-muted font-mono text-sm text-muted-foreground flex-shrink-0',
                                             isRowSelected && 'bg-blue-500 text-white hover:bg-blue-600'
                                         )}
                                         style={{
