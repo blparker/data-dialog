@@ -60,7 +60,7 @@ function useAutoScroll({
 
     // Scroll when messages change during streaming
     useEffect(() => {
-        if (status === 'streaming' && messages.length > 0) {
+        if (streamingRef.current) {
             scrollToBottom('instant');
         }
     }, [messages, status, scrollToBottom]);

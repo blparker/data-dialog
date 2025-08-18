@@ -2,7 +2,7 @@ import { ChatStatus, UIMessage } from 'ai';
 import { Markdown } from './markdown';
 import ReasoningMessage from './reasoning-message';
 import TextMessage from './text-message';
-import DynamicToolMessage from './tool-message';
+import ToolMessage from './tool-message';
 
 export default function Message({ message, status }: { message: UIMessage; status: ChatStatus }) {
     // Reorder parts to show reasoning before text
@@ -17,7 +17,7 @@ export default function Message({ message, status }: { message: UIMessage; statu
     return (
         <div className="flex flex-col gap-1">
             {reorderedParts.map((part, index) => {
-                if (part.type === 'text') {
+                if (part.type === 'text' && part.text.trim().length > 0) {
                     return (
                         <TextMessage key={index} role={message.role}>
                             {/* <MarkedMarkdown>{part.text.trim()}</MarkedMarkdown> */}
@@ -32,8 +32,13 @@ export default function Message({ message, status }: { message: UIMessage; statu
                             {part.text.trim()}
                         </ReasoningMessage>
                     );
-                } else if (part.type === 'dynamic-tool') {
-                    return <DynamicToolMessage key={index}>Tool</DynamicToolMessage>;
+                } else if (part.type.startsWith('tool-')) {
+                    // console.log('*** tool part:', part);
+                    return (
+                        <ToolMessage key={index} toolName={part.type}>
+                            Tool
+                        </ToolMessage>
+                    );
                 }
 
                 return null;

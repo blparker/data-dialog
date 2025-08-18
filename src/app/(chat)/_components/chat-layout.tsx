@@ -4,6 +4,7 @@ import { UIMessage } from 'ai';
 import ChatPane from './chat/chat-pane';
 import DataPane from './data-pane';
 import { DataSource, TransformationStep } from '@/lib/db/schema';
+import { TabsProvider } from './tabs-context';
 
 export default function ChatLayout({
     chatId,
@@ -17,13 +18,15 @@ export default function ChatLayout({
     initialMessages: UIMessage[];
 }) {
     return (
-        <div className="flex overflow-hidden w-full h-screen">
-            <div className="w-2/3 border-r">
-                <DataPane chatId={chatId} steps={steps} previewSteps={previewSteps} />
+        <TabsProvider>
+            <div className="flex overflow-hidden w-full h-screen">
+                <div className="w-2/3 border-r">
+                    <DataPane chatId={chatId} steps={steps} previewSteps={previewSteps} />
+                </div>
+                <div className="w-1/3">
+                    <ChatPane chatId={chatId} initialMessages={initialMessages} />
+                </div>
             </div>
-            <div className="w-1/3">
-                <ChatPane chatId={chatId} initialMessages={initialMessages} />
-            </div>
-        </div>
+        </TabsProvider>
     );
 }
