@@ -5,8 +5,15 @@ import Message from './message';
 import ThinkingMessage from './thinking-message';
 import ScrollToBottomButton from './scroll-to-bottom-button';
 
-export default function MessageList({ messages, status, isThinking }: { messages: UIMessage[]; status: ChatStatus; isThinking: boolean }) {
-    const { containerRef, endRef, isAtBottom, scrollToBottom } = useScrollToBottom({ status });
+function useAutoScroll({
+    status,
+    messages,
+    scrollToBottom,
+}: {
+    status: ChatStatus;
+    messages: UIMessage[];
+    scrollToBottom: (scrollBehavior: ScrollBehavior) => void;
+}) {
     const streamingRef = useRef(false);
 
     // Scroll to bottom on mount
@@ -57,6 +64,11 @@ export default function MessageList({ messages, status, isThinking }: { messages
             scrollToBottom('instant');
         }
     }, [messages, status, scrollToBottom]);
+}
+
+export default function MessageList({ messages, status, isThinking }: { messages: UIMessage[]; status: ChatStatus; isThinking: boolean }) {
+    const { containerRef, endRef, isAtBottom, scrollToBottom } = useScrollToBottom({ status });
+    useAutoScroll({ status, messages, scrollToBottom });
 
     return (
         <div ref={containerRef} className="flex-1 p-4 overflow-y-auto">
