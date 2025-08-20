@@ -65,8 +65,10 @@ export const createTools = (ctx: ToolContext) => ({
     }),
 
     uploadDataSource: tool({
+        // description:
+        //     'Upload a new data source. This tool is used to render an upload form that allows the user to upload/load a new data source',
         description:
-            'Upload a new data source. This tool is used to render an upload form that allows the user to upload/load a new data source',
+            'This tool is used to point the user to the "New Data Source" tab to allow them to upload a new data source. This tool does not actually upload the data source',
         inputSchema: z.object({}),
         execute: async (): Promise<ToolExecuteResult<void>> => {
             return { ok: true, data: undefined };

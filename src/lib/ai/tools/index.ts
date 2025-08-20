@@ -1,9 +1,10 @@
 import { DataSource } from '@/lib/db/schema';
-import { createTools as createDataSourceTools } from './datasources';
+import { createTools as createDataSourceTools } from './datasource';
 
 export type ToolContext = {
     chatId: string;
     selectedDataSources: DataSource[];
+    activeDataSource: DataSource;
 };
 
 export type ToolExecuteResult<T> =

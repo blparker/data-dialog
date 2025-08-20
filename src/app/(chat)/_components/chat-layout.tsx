@@ -17,8 +17,11 @@ export default function ChatLayout({
     previewSteps: { step: TransformationStep; dataSource: DataSource | null }[];
     initialMessages: UIMessage[];
 }) {
+    // Calculate the initial tab - use the first preview step if available, otherwise 'new'
+    const initialTab = previewSteps.length > 0 ? previewSteps[0].step.id : 'new';
+
     return (
-        <TabsProvider>
+        <TabsProvider initialTab={initialTab}>
             <div className="flex overflow-hidden w-full h-screen">
                 <div className="w-2/3 border-r">
                     <DataPane chatId={chatId} steps={steps} previewSteps={previewSteps} />

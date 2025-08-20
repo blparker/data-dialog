@@ -7,6 +7,7 @@ import Message from './message';
 import ThinkingMessage from './thinking-message';
 import ScrollToBottomButton from './scroll-to-bottom-button';
 import MessageList from './messages-list';
+import { useTabsContext } from '../tabs-context';
 
 export default function ChatPane({ chatId, initialMessages }: { chatId: string; initialMessages: UIMessage[] }) {
     const { messages, sendMessage, status, stop } = useChat({
@@ -14,13 +15,18 @@ export default function ChatPane({ chatId, initialMessages }: { chatId: string; 
         messages: initialMessages,
     });
 
+    const { activeTab } = useTabsContext();
     const isThinking = showThinkingMessage(status, messages);
+
+    function handleSendMessage(text: string) {
+        sendMessage({ text }, { body: { context: { activeTab } } });
+    }
 
     return (
         <div className="flex flex-col min-w-0 h-dvh">
             <MessageList messages={messages} status={status} isThinking={isThinking} />
             <form>
-                <MessageInput status={status} isThinking={isThinking} sendMessage={(text) => sendMessage({ text })} stop={stop} />
+                <MessageInput status={status} isThinking={isThinking} sendMessage={handleSendMessage} stop={stop} />
             </form>
         </div>
     );

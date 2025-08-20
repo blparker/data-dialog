@@ -15,7 +15,7 @@ export default function Message({ message, status }: { message: UIMessage; statu
     });
 
     return (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2">
             {reorderedParts.map((part, index) => {
                 if (part.type === 'text' && part.text.trim().length > 0) {
                     return (

@@ -7,8 +7,12 @@ import { stepsForChatId } from '@/lib/db/queries/steps';
 import { sortTransformationSteps } from '@/lib/step-lib';
 import { convertToModelMessages, streamText, UIMessage, generateId, stepCountIs } from 'ai';
 
+interface ChatBody {
+    activeTab: string;
+}
+
 export async function POST(req: Request) {
-    const { id, messages }: { id: string; messages: UIMessage[] } = await req.json();
+    const { id, messages, context }: { id: string; messages: UIMessage[]; context: ChatBody } = await req.json();
 
     const userMessage = messages.at(-1);
     if (!userMessage) {
@@ -24,15 +28,17 @@ export async function POST(req: Request) {
     }
 
     const steps = sortTransformationSteps(await stepsForChatId({ chatId: id }));
-    const previewDataSources = (await dataSourcesForPreviewSteps({ steps }))
-        .filter(({ dataSource }) => dataSource !== null)
-        .map(({ dataSource }) => dataSource!);
+    const previewDataSources = (await dataSourcesForPreviewSteps({ steps })).filter(({ dataSource }) => dataSource !== null);
+    const selectedDataSources = previewDataSources.map(({ dataSource }) => dataSource!);
+    const activeDataSource = previewDataSources.find(({ step }) => step.id === context.activeTab)?.dataSource;
+    if (!activeDataSource) {
+        return new Response('Active data source not found', { status: 404 });
+    }
 
     const result = streamText({
         model: aiProvider.languageModel('chat-model-reasoning-local'),
-        // system: 'You are a helpful assistant.',
         system: systemPrompt(),
-        tools: createTools({ chatId: chat.id, selectedDataSources: previewDataSources }),
+        tools: createTools({ chatId: chat.id, selectedDataSources, activeDataSource }),
         messages: convertToModelMessages(messages),
         stopWhen: stepCountIs(3),
     });

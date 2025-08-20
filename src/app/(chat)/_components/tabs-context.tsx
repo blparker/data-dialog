@@ -10,8 +10,8 @@ interface TabsContextType {
 
 const TabsContext = createContext<TabsContextType | undefined>(undefined);
 
-export function TabsProvider({ children }: { children: React.ReactNode }) {
-    const [activeTab, setActiveTab] = useState<string>('');
+export function TabsProvider({ children, initialTab = '' }: { children: React.ReactNode; initialTab?: string }) {
+    const [activeTab, setActiveTab] = useState<string>(initialTab);
 
     const switchToUploadTab = () => {
         setActiveTab('new');
