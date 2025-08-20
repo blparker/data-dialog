@@ -7,6 +7,7 @@ import { EditFieldsStepData, SourceStepData } from '@/lib/types/steps';
 import { describeSql, executeSql } from '../queries/analysis-db';
 import { TableDataFetchResponse } from '@/lib/types/table';
 import { sortTransformationSteps } from '@/lib/step-lib';
+import { qi } from '@/lib/utils';
 
 export async function schemaAtStep({ chatId, stepId }: { chatId: string; stepId: string }): Promise<DataSchema> {
     const allSteps = await stepsForChatId({ chatId });
@@ -62,12 +63,6 @@ function buildSqlForStep(
     const selectTail = `SELECT ${countOnlyTail} FROM ${qi(targetStep.writes)} ${offsetTail} ${limitTail}`;
 
     return `WITH ${ctes} ${selectTail.trim()}`;
-}
-
-const IDENT = /^[A-Za-z0-9_][A-Za-z0-9_-]*$/;
-function qi(name: string) {
-    if (!IDENT.test(name)) throw new Error(`Invalid identifier: ${name}`);
-    return `"${name}"`;
 }
 
 async function resolveSchemaForStep(chatId: string, allSteps: TransformationStep[], targetStep: TransformationStep): Promise<DataSchema> {

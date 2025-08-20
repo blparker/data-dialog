@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { DataSource, dataSource } from '../schema';
-import { eq } from 'drizzle-orm';
+import { DataSource, dataSource, transformationStep } from '../schema';
+import { count, eq } from 'drizzle-orm';
 
 export async function dataSourceById({ id }: { id: string }) {
     try {
@@ -19,5 +19,15 @@ export async function allDataSources(): Promise<DataSource[]> {
     } catch (error) {
         console.error('error while getting all data sources:', error);
         throw new Error('bad_request:database. Failed to get all data sources');
+    }
+}
+
+export async function countOfStepsForChat({ chatId }: { chatId: string }) {
+    try {
+        const [{ count: c }] = await db.select({ count: count() }).from(transformationStep).where(eq(transformationStep.chatId, chatId));
+        return c;
+    } catch (error) {
+        console.error('error while getting count of steps for chat:', error);
+        throw new Error('bad_request:database. Failed to get count of steps for chat');
     }
 }

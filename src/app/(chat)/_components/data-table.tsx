@@ -24,10 +24,9 @@ import { Column, flexRender, Header } from '@tanstack/react-table';
 import { ArrowDownAZ, ArrowUpZA, Edit, Filter, MoreVertical, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-const SCROLL_THRESHOLD = 200;
 const DEFAULT_ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 40;
-const USE_MOCK_DATA = true;
+const USE_MOCK_DATA = false;
 const LINE_NUMBER_WIDTH = 60;
 
 export default function DataTable({ chatId, stepId }: { chatId: string; stepId: string }) {
@@ -245,7 +244,7 @@ export default function DataTable({ chatId, stepId }: { chatId: string; stepId: 
                                                 <div
                                                     key={cell.id}
                                                     className={cn(
-                                                        'absolute border-r last:border-r-0 border-b flex items-center px-2 overflow-hidden',
+                                                        'absolute border-r border-b flex items-center px-2 overflow-hidden',
                                                         isColumnSelected && 'bg-blue-50',
                                                         isRowSelected && 'bg-blue-50'
                                                     )}
@@ -304,7 +303,7 @@ function DataTableHead({
             }}
             onDoubleClick={() => setIsRenaming(true)}
             className={cn(
-                'absolute top-0 font-medium cursor-pointer select-none px-2 py-1 border-r last:border-r-0 flex items-center group ',
+                'absolute top-0 font-medium cursor-pointer select-none px-2 py-1 border-r flex items-center group ',
                 isSelected && 'bg-blue-500 text-white',
                 isDragging && !isRenaming && 'cursor-ew-resize opacity-50'
             )}

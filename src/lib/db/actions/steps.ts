@@ -1,9 +1,11 @@
 'use server';
 
 import { SourceStepData } from '@/lib/types/steps';
-import { dataSourceById } from '../queries/datasource';
+import { dataSourceById, countOfStepsForChat } from '../queries/datasource';
 import { DataSource, TransformationStep } from '../schema';
 import { computePreviewSteps } from '@/lib/step-lib';
+import { createStep } from '../queries/steps';
+import { qi } from '@/lib/utils';
 
 export async function dataSourcesForPreviewSteps({
     steps,
@@ -41,6 +43,26 @@ export async function dataSourcesForPreviewSteps({
     );
 
     return results;
+}
+
+export async function createSourceStep({ chatId, dataSourceId }: { chatId: string; dataSourceId: string }): Promise<TransformationStep> {
+    const sourceStepData: SourceStepData = {
+        type: 'source',
+        dataSourceId,
+    };
+
+    const count = await countOfStepsForChat({ chatId });
+    const sql = `SELECT * FROM ${qi(dataSourceId)}`;
+
+    return await createStep({
+        newStep: {
+            chatId,
+            type: 'source',
+            data: sourceStepData,
+            writes: `t${count}`,
+            sql,
+        },
+    });
 }
 
 function nearestSource(stepWrites: string, byWrites: Map<string, TransformationStep>): TransformationStep | null {

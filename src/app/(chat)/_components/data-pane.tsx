@@ -4,7 +4,7 @@ import { DataSource, TransformationStep } from '@/lib/db/schema';
 import { computePreviewSteps } from '@/lib/step-lib';
 import { PlusIcon } from 'lucide-react';
 import { useTabsContext } from './tabs-context';
-import { UploadTabContent } from './new-data-source';
+import { NewDataSourceTabContent } from './new-data-source';
 
 export default function DataPane({
     chatId,
@@ -58,7 +58,7 @@ function TablePane({
                 </TabsContent>
             ))}
             <TabsContent value="new" className="flex-1 min-h-0">
-                <UploadTabContent />
+                <NewDataSourceTabContent chatId={chatId} />
             </TabsContent>
         </Tabs>
     );

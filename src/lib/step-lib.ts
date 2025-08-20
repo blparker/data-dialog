@@ -55,16 +55,17 @@ export function computePreviewSteps(transformationSteps: TransformationStep[]): 
     const terminalSteps = transformationSteps.filter((step) => !stepsThatAreRead.has(step.id));
 
     // Find join steps (steps that read from multiple sources)
-    const joinSteps = transformationSteps.filter((step) => step.reads.length >= 2 && step.type === 'join');
+    // const joinSteps = transformationSteps.filter((step) => step.reads.length >= 2 && step.type === 'join');
 
-    // Get the latest join step if any exist
-    const latestJoinStep =
-        joinSteps.length > 0
-            ? joinSteps.reduce((latest, current) => (new Date(current.createdAt) > new Date(latest.createdAt) ? current : latest))
-            : null;
+    // // Get the latest join step if any exist
+    // const latestJoinStep =
+    //     joinSteps.length > 0
+    //         ? joinSteps.reduce((latest, current) => (new Date(current.createdAt) > new Date(latest.createdAt) ? current : latest))
+    //         : null;
 
     // Combine terminal steps with the latest join step
-    const previewSteps = latestJoinStep ? [...terminalSteps, latestJoinStep] : terminalSteps;
+    // const previewSteps = latestJoinStep ? [...terminalSteps, latestJoinStep] : terminalSteps;
+    const previewSteps = terminalSteps;
 
     // Remove duplicates (in case the latest join step is also a terminal step)
     const uniqueSteps = previewSteps.filter((step, index, array) => array.findIndex((s) => s.id === step.id) === index);

@@ -44,3 +44,14 @@ export async function fetchWithErrorHandlers(input: RequestInfo | URL, init?: Re
         throw error;
     }
 }
+
+const IDENT = /^[A-Za-z0-9_][A-Za-z0-9_-]*$/;
+/**
+ * Quote an identifier
+ * @param name - The name of the identifier
+ * @returns The quoted identifier
+ */
+export function qi(name: string) {
+    if (!IDENT.test(name)) throw new Error(`Invalid identifier: ${name}`);
+    return `"${name}"`;
+}
