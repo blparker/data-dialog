@@ -1,4 +1,4 @@
 {
     "typescript.tsdk": "node_modules/typescript/lib",
-    "vscode_custom_css.imports": ["file:///Users/bryan/.config/custom-vscode.css"]
+    "vscode_custom_css.imports": ["file:///$HOME/.config/custom-vscode.css"]
 }
